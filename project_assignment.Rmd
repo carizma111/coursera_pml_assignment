@@ -1,0 +1,122 @@
+---
+title: "Practical Machine Learning Project Assigment"
+author: "Karishma Agarwal"
+date: "Feb 18, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+The document examines data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which these participants exercise. The document describes how the model was built, how was the cross validation used, how was accuracy determined and why some choices were made. Finally, the trained model was used to predict 20 different test cases.
+
+1. Read .csv files required for analysis
+```{r read_data}
+data_training <- read.csv("Input\ data/pml-training.csv")
+data_testing <- read.csv("Input\ data/pml-testing.csv")
+```
+2. Transform training and test data set to include only features with non-NA values from test data set
+```{r data_transform}
+data_testing <- data_testing[ , colSums(is.na(data_testing)) == 0]
+data_training_test <- data_training[names(data_training) %in% names(data_testing)]
+# Add the outcome variable
+data_training_final <- data.frame(cbind(data_training_test, data_training$classe))
+# Change the name of the added column to classe
+names(data_training_final)[60] <- 'classe'
+```
+3. Match factor levels between training and test data set
+```{r factor_level}
+# Remove problem Id [60] from the data_testing
+data_testing_new <- data_testing[,-60]
+# Remove classe [60] from the data_training_final
+data_training_final_new <- data_training_final[,-60]
+# Resolving different factor levels issue between training and testing set
+data_testing_new$cvtd_timestamp <- as.character(data_testing_new$cvtd_timestamp)
+data_testing_new$new_window <- as.character(data_testing_new$new_window)
+data_training_final_new$cvtd_timestamp <- as.character(data_training_final_new$cvtd_timestamp)
+data_training_final_new$new_window <- as.character(data_training_final_new$new_window)
+# Adding isTest identifier
+data_testing_new$isTest <- rep(1,nrow(data_testing_new))
+data_training_final_new$isTest <- rep(0,nrow(data_training_final_new))
+fullSet <- rbind(data_testing_new,data_training_final_new)
+fullSet$cvtd_timestamp <- as.factor(fullSet$cvtd_timestamp)
+fullSet$new_window <- as.factor(fullSet$new_window)
+data_testing_result <- fullSet[fullSet$isTest==1,]
+data_training_result <- fullSet[fullSet$isTest==0,]
+# Removing isTest identifier
+data_testing_result <- data_testing_result[,-60]
+data_training_result <- data_training_result[,-60]
+# Add the outcome variable
+data_training_final_result <- data.frame(cbind(data_training_result, data_training_final$classe))
+#Change the name of the added column to classe
+names(data_training_final_result)[60] <- 'classe'
+```
+4. Remove unbalanced class issue form training data set
+```{r unbalanced_class}
+# Training data is skewed on class A, with more than 1700 observations in A as compared to other classes
+# To undersample,randomly delete 1,700 rows containing class 'A' from data_training_final_result
+new_subset<- subset(data_training_final_result, classe =='A')
+# Randomly select 1700 rows from new_subset
+new_subset_sample <- new_subset[sample(nrow(new_subset),1700),]
+# Delete rows from data_training_final_result which have rows from new_subset_sample
+data_training_final_result_sample <- data_training_final_result[!(data_training_final_result$X %in% new_subset_sample$X),]
+# Remove first column 'X' does not add value to the model as it is just serial number of records
+data_training_final_result_sample <- data_training_final_result_sample[,-1]
+data_testing_result <- data_testing_result[,-1]
+```
+5. Install R packages required for data analysis
+```{r install_packages}
+library(caret)
+library(e1071)
+library(randomForest)
+# Using parallel package to improve performance of caret :: train()
+library(parallel)
+library(doParallel)
+```
+6. Prepare training and testing set
+```{r prepare_datasets}
+# Set up training run for x / y syntax because model format performs poorly
+x <- data_training_final_result_sample[,-59]
+y <- data_training_final_result_sample[,59]
+```
+7. Configure parallel processing
+```{r parallel_processing}
+set.seed(95014)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+```
+
+8. Configure trainControl object
+```{r train_control}
+# Changing the resampling method from the default of bootstraping to K-fold cross validation to increase performance
+fitControl <- trainControl(method = "cv",
+                           number = 5,
+                           allowParallel = TRUE)
+```
+9. Apply random forest method
+```{r random_forest}
+modFit_rf <- train(x,y , method="rf", data=data_training_final_result_sample, trControl = fitControl)
+```
+10. De-register parallel processing cluster-
+```{r de_register}
+stopCluster(cluster)
+registerDoSEQ()
+```
+11. Check the model accuracy
+```{r model_accuracy}
+print(modFit_rf)
+modFit_rf$resample
+confusionMatrix.train(modFit_rf)
+```
+12. Apply model to testing data set
+```{r final_prediction}
+#Predicting on real test set
+prediction_final <- predict(modFit_rf, newdata = data_testing_result)
+print(prediction_final)
+```
+
