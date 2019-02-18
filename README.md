@@ -6,7 +6,7 @@ The .RMD document examines data from accelerometers on the belt, forearm, arm, a
 Link : [project_assignment.Rmd](https://github.com/carizma111/coursera_pml_assignment/blob/master/project_assignment.Rmd)
 
 ## b. project_assignment.R
-This is raw .R file which was used to build .RMD document
+This is the raw .R file which was used to build .RMD document
 
 Link: [project_assignment.R](https://github.com/carizma111/coursera_pml_assignment/blob/master/project_assignment.R)
 
