@@ -8,9 +8,11 @@ This is raw .R file which was used to build .RMD document
 
 ## c. Link to HTML document
 This is the link to HTML document which is produced once the .RMD file is executed
+Link on Rpubs:
 
 ## d. Downloadable copy of HTML document
 This is the downloadable version of HTML document for graders to review
+Name: Practical Machine Learning Project Assigment.pdf
 
 
 
